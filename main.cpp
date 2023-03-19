@@ -18,6 +18,7 @@ using Points = std::vector<Point>;
 using Facet = std::vector<Points::size_type>;
 using Facets = std::vector<Facet>;
 using Polyhedron = std::tuple<Points,Facets>;
+using Components = std::vector<Polyhedron>;
 
 using K=CGAL::Exact_predicates_exact_constructions_kernel;
 using HalfedgeDS=CGAL::Polyhedron_3<K>::HalfedgeDS;
@@ -153,29 +154,37 @@ using Rule = rule<std::string::const_iterator, T, space_type>;
 
 void test(const std::string& input)
 {
-	Polyhedron result;
+	Components result;
 
 	Rule<Point> point_rule = '[' >> (double_ % ',') >> ']';
 	Rule<Points> points_rule = '[' >> point_rule % ',' >> ']';
 	Rule<Facet> facet_rule = '[' >> (int_ % ',') >> ']';
 	Rule<Facets> facets_rule = '[' >> facet_rule % ',' >> ']';
 	Rule<Polyhedron> polyhedron_rule = "polyhedron(" >> points_rule >> ',' >> facets_rule >> ");";
+	Rule<Components> components_rule = "difference(){" >> *polyhedron_rule >> "}";
 
 	bool parsed = phrase_parse(
 			input.begin(),input.end(),
-			polyhedron_rule,
+			components_rule,
 			space,result);
 
-	if(parsed) {
-		Builder b(result);
+	if(parsed && result.size()==2) {
+		Builder b1(result[0]);
 
-		CGAL::Polyhedron_3<K> P;
-		P.delegate(b);
-		if(!b.is_complete()) return;
+		CGAL::Polyhedron_3<K> P1;
+		P1.delegate(b1);
+		if(!b1.is_complete()) return;
 
-		//if(!P.is_closed()) return;
+		Builder b2(result[1]);
 
-		CGAL::Nef_polyhedron_3<K> N(P);
+		CGAL::Polyhedron_3<K> P2;
+		P2.delegate(b2);
+		if(!b2.is_complete()) return;
+
+		CGAL::Nef_polyhedron_3<K> N1(P1);
+		CGAL::Nef_polyhedron_3<K> N2(P2);
+
+		CGAL::Nef_polyhedron_3<K> N3 = N1.difference(N2);
 
 		std::cout << "valid!" << std::endl;
 	}
