@@ -146,16 +146,25 @@ public:
 	bool is_complete() { return complete; }
 };
 
+using namespace boost::spirit::qi;
+
+template <typename T>
+using Rule = rule<std::string::const_iterator, T, space_type>;
+
 void test(const std::string& input)
 {
 	Polyhedron result;
 
-	namespace qi = boost::spirit::qi;
+	Rule<Point> point_rule = '[' >> (double_ % ',') >> ']';
+	Rule<Points> points_rule = '[' >> point_rule % ',' >> ']';
+	Rule<Facet> facet_rule = '[' >> (int_ % ',') >> ']';
+	Rule<Facets> facets_rule = '[' >> facet_rule % ',' >> ']';
+	Rule<Polyhedron> polyhedron_rule = "polyhedron(" >> points_rule >> ',' >> facets_rule >> ");";
 
-	bool parsed = qi::phrase_parse(
+	bool parsed = phrase_parse(
 			input.begin(),input.end(),
-			"polyhedron(" >> ('[' >> ('[' >> qi::double_ % ',' >> ']') % ',') >> ']' >> ',' >> ('[' >> ('[' >> qi::int_ % ',' >> ']') % ',' >> ']') >> ");",
-			qi::space,result);
+			polyhedron_rule,
+			space,result);
 
 	if(parsed) {
 		Builder b(result);
